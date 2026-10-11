@@ -6,6 +6,7 @@ import bcrypt from "bcryptjs";
 import { GoogleGenAI } from "@google/genai";
 import * as fs from "node:fs";
 import axios from "axios";
+import { generatevideo } from "./video";
 
 const app = express();
 const PORT = 3000;
@@ -234,15 +235,41 @@ app.post("/api/v1/avatar", async (req, res) => {
 });
 
 // --------------------------------------------------
-// CREATE VIDEO (placeholder endpoint)
+// CREATE VIDEO
 // POST /api/v1/video
 // --------------------------------------------------
-app.post("/api/v1/video", (req, res) => {
-  return res.status(200).json({
-    message: "Video endpoint",
-    success: true,
-    data: req.body,
-  });
+app.post("/api/v1/video", async (req, res) => {
+  try {
+    const {
+      prompt,
+      imageUrls,
+      voice = "en-US-Wavenet-F",
+      language = "en-US",
+      outputPath = "output.mp4",
+    } = req.body ?? {};
+
+    if (!prompt || !Array.isArray(imageUrls) || imageUrls.length === 0) {
+      return res.status(400).json({
+        message: "Prompt and imageUrls are required",
+        success: false,
+      });
+    }
+
+    await generatevideo(prompt, imageUrls, voice, language, outputPath);
+
+    return res.status(200).json({
+      message: "Video generation started",
+      success: true,
+      data: { outputPath },
+    });
+  } catch (error) {
+    console.error("Video generation error:", error);
+
+    return res.status(500).json({
+      message: "Video generation failed",
+      success: false,
+    });
+  }
 });
 
 // GET VIDEO BY ID
