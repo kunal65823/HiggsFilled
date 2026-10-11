@@ -1,8 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
 
 generator client {
   provider = "prisma-client"
@@ -12,4 +7,64 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String        @id @default(uuid())
+  username     String        @unique
+  password     String
+  avatars      Avatar[]
+  avatarVideos AvatarVideo[]
+}
+
+model Avatar {
+  id              String                 @id @default(uuid())
+  userId          String
+  name            String
+  user            User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  images          AvatarImage[]
+  videoReferences AvatarVideoReference[]
+}
+
+model AvatarImage {
+  id      String          @id @default(uuid())
+  avatarId String
+  type    AvatarImageType
+  url     String
+  avatar  Avatar          @relation(fields: [avatarId], references: [id], onDelete: Cascade)
+}
+
+enum AvatarImageType {
+  User
+  Model
+}
+
+model AvatarVideo {
+  id           String                 @id @default(uuid())
+  userId       String
+  prompt       String
+  startFrame   String?
+  endFrame     String?
+  duration     Int
+  width        Int
+  height       Int
+  status       AvatarVideoStatus       @default(pending)
+  user         User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  references   AvatarVideoReference[]
+}
+
+model AvatarVideoReference {
+  id            String      @id @default(uuid())
+  avatarVideoId String
+  avatarId      String
+  avatarVideo   AvatarVideo @relation(fields: [avatarVideoId], references: [id], onDelete: Cascade)
+  avatar        Avatar      @relation(fields: [avatarId], references: [id], onDelete: Cascade)
+
+  @@unique([avatarVideoId, avatarId])
+}
+
+enum AvatarVideoStatus {
+  pending
+  done
+  error
 }
