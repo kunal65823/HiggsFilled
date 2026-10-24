@@ -6,12 +6,35 @@ import bcrypt from "bcryptjs";
 import { GoogleGenAI } from "@google/genai";
 import * as fs from "node:fs";
 import axios from "axios";
-import { generatevideo } from "./video";
+import { generatevideo } from "./video.ts";
 
 const app = express();
-const PORT = 3000;
+const PORT = Number(process.env.PORT ?? 3000);
 
 app.use(express.json({ limit: "10mb" }));
+app.use((req, res, next) => {
+  const allowedOrigins = (
+    process.env.FRONTEND_ORIGIN ??
+    "http://localhost:3001,http://127.0.0.1:3001"
+  ).split(",").map((origin) => origin.trim());
+  const origin = req.headers.origin;
+
+  if (origin && allowedOrigins.includes(origin)) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+    res.setHeader("Vary", "Origin");
+    res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
+    res.setHeader(
+      "Access-Control-Allow-Headers",
+      "Content-Type, X-User-Id",
+    );
+  }
+
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(204);
+  }
+
+  return next();
+});
 
 // Initialize Google GenAI
 const apiKey = process.env.GOOGLE_API_KEY;
@@ -222,6 +245,7 @@ app.post("/api/v1/avatar", async (req, res) => {
     return res.status(200).json({
       message: "Avatar image generated successfully",
       success: true,
+      data: { filename: outputPath },
       filename: outputPath,
     });
   } catch (error) {
@@ -273,81 +297,260 @@ app.post("/api/v1/video", async (req, res) => {
 });
 
 // GET VIDEO BY ID
-app.get("/api/v1/video/:videoId", (req, res) => {
-  const { videoId } = req.params;
+app.get("/api/v1/video/:videoId", async (req, res) => {
+  try {
+    const { videoId } = req.params;
 
-  return res.status(200).json({
-    message: "Get video by ID",
-    success: true,
-    data: {
-      videoId,
-      title: "Sample video",
-    },
-  });
+    if (!videoId) {
+      return res.status(400).json({
+        message: "Video ID is required",
+        success: false,
+      });
+    }
+
+    const video = await prisma.avatarVideo.findUnique({
+      where: { id: videoId },
+      include: {
+        references: {
+          select: {
+            id: true,
+            avatarId: true,
+          },
+        },
+      },
+    });
+
+    if (!video) {
+      return res.status(404).json({
+        message: "Video not found",
+        success: false,
+      });
+    }
+
+    return res.status(200).json({
+      message: "Get video by ID",
+      success: true,
+      data: {
+        videoId: video.id,
+        title: video.prompt.slice(0, 80),
+        prompt: video.prompt,
+        status: video.status,
+        duration: video.duration,
+        width: video.width,
+        height: video.height,
+        startFrame: video.startFrame,
+        endFrame: video.endFrame,
+        references: video.references,
+      },
+    });
+  } catch (error) {
+    console.error("Get video by ID error:", error);
+
+    return res.status(500).json({
+      message: "Failed to fetch video",
+      success: false,
+    });
+  }
 });
 
 // GET ALL VIDEOS
-app.get("/api/v1/videos", (req, res) => {
-  return res.status(200).json({
-    message: "Get all videos",
-    success: true,
-    data: [
-      { videoId: "1", title: "Sample video 1" },
-      { videoId: "2", title: "Sample video 2" },
-    ],
-  });
+app.get("/api/v1/videos", async (req, res) => {
+  try {
+    const userId =
+      (typeof req.query.userId === "string" && req.query.userId) ||
+      (typeof req.headers["x-user-id"] === "string" && req.headers["x-user-id"]);
+
+    const videos = await prisma.avatarVideo.findMany({
+      where: userId ? { userId } : undefined,
+      orderBy: { id: "desc" },
+      select: {
+        id: true,
+        prompt: true,
+        status: true,
+        duration: true,
+        width: true,
+        height: true,
+        startFrame: true,
+        endFrame: true,
+      },
+    });
+
+    return res.status(200).json({
+      message: "Get all videos",
+      success: true,
+      data: videos.map((video) => ({
+        videoId: video.id,
+        title: video.prompt.slice(0, 80),
+        prompt: video.prompt,
+        status: video.status,
+        duration: video.duration,
+        width: video.width,
+        height: video.height,
+        startFrame: video.startFrame,
+        endFrame: video.endFrame,
+      })),
+    });
+  } catch (error) {
+    console.error("Get videos error:", error);
+
+    return res.status(500).json({
+      message: "Failed to fetch videos",
+      success: false,
+    });
+  }
 });
 
-// CURRENT USER (demo endpoint)
-app.get("/api/v1/me", (req, res) => {
-  return res.status(200).json({
-    message: "Current user",
-    success: true,
-    data: {
-      id: "user_123",
-      name: "Demo User",
-      email: "demo@example.com",
-    },
-  });
+// CURRENT USER
+app.get("/api/v1/me", async (req, res) => {
+  try {
+    const userId =
+      (typeof req.query.userId === "string" && req.query.userId) ||
+      (typeof req.headers["x-user-id"] === "string" && req.headers["x-user-id"]);
+
+    if (userId) {
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { id: true, username: true },
+      });
+
+      if (!user) {
+        return res.status(404).json({
+          message: "User not found",
+          success: false,
+        });
+      }
+
+      return res.status(200).json({
+        message: "Current user",
+        success: true,
+        data: {
+          id: user.id,
+          username: user.username,
+        },
+      });
+    }
+
+    return res.status(200).json({
+      message: "Current user",
+      success: true,
+      data: {
+        id: "user_123",
+        username: "demo-user",
+      },
+    });
+  } catch (error) {
+    console.error("Get current user error:", error);
+
+    return res.status(500).json({
+      message: "Failed to fetch current user",
+      success: false,
+    });
+  }
 });
 
-// GET ALL MODELS (demo endpoint)
+// GET ALL MODELS
 app.get("/api/v1/models", (req, res) => {
   return res.status(200).json({
     message: "Get all models",
     success: true,
     data: [
-      { id: "model_1", name: "GPT-4o" },
-      { id: "model_2", name: "Claude Sonnet" },
+      { id: "gemini-3.1-flash-image", name: "Gemini 3.1 Flash Image" },
+      { id: "veo-3.1-generate-preview", name: "Veo 3.1 Generate Preview" },
     ],
   });
 });
 
-// GET AVATAR BY ID (demo endpoint)
-app.get("/api/v1/avatar/:avatarId", (req, res) => {
-  const { avatarId } = req.params;
+// GET AVATAR BY ID
+app.get("/api/v1/avatar/:avatarId", async (req, res) => {
+  try {
+    const { avatarId } = req.params;
 
-  return res.status(200).json({
-    message: "Get avatar by ID",
-    success: true,
-    data: {
-      avatarId,
-      name: "Sample Avatar",
-      style: "professional",
-    },
-  });
+    if (!avatarId) {
+      return res.status(400).json({
+        message: "Avatar ID is required",
+        success: false,
+      });
+    }
+
+    const avatar = await prisma.avatar.findUnique({
+      where: { id: avatarId },
+      include: {
+        images: {
+          select: {
+            id: true,
+            type: true,
+            url: true,
+          },
+        },
+      },
+    });
+
+    if (!avatar) {
+      return res.status(404).json({
+        message: "Avatar not found",
+        success: false,
+      });
+    }
+
+    return res.status(200).json({
+      message: "Get avatar by ID",
+      success: true,
+      data: {
+        avatarId: avatar.id,
+        name: avatar.name,
+        userId: avatar.userId,
+        images: avatar.images,
+      },
+    });
+  } catch (error) {
+    console.error("Get avatar by ID error:", error);
+
+    return res.status(500).json({
+      message: "Failed to fetch avatar",
+      success: false,
+    });
+  }
 });
 
-// GET ALL AVATARS (demo endpoint)
-app.get("/api/v1/avatars", (req, res) => {
-  return res.status(200).json({
-    message: "Get all avatars",
-    success: true,
-    data: [
-      { avatarId: "avatar_1", name: "Avatar 1" },
-      { avatarId: "avatar_2", name: "Avatar 2" },
-    ],
-  });
+// GET ALL AVATARS
+app.get("/api/v1/avatars", async (req, res) => {
+  try {
+    const userId =
+      (typeof req.query.userId === "string" && req.query.userId) ||
+      (typeof req.headers["x-user-id"] === "string" && req.headers["x-user-id"]);
+
+    const avatars = await prisma.avatar.findMany({
+      where: userId ? { userId } : undefined,
+      orderBy: { id: "desc" },
+      include: {
+        images: {
+          select: {
+            id: true,
+            type: true,
+            url: true,
+          },
+        },
+      },
+    });
+
+    return res.status(200).json({
+      message: "Get all avatars",
+      success: true,
+      data: avatars.map((avatar) => ({
+        avatarId: avatar.id,
+        name: avatar.name,
+        userId: avatar.userId,
+        images: avatar.images,
+      })),
+    });
+  } catch (error) {
+    console.error("Get avatars error:", error);
+
+    return res.status(500).json({
+      message: "Failed to fetch avatars",
+      success: false,
+    });
+  }
 });
 
 // START SERVER
