@@ -1,6 +1,7 @@
 import type { FormEvent } from "react";
 import { AvatarCard, EmptyState } from "../MediaCards";
 import { PageHeader } from "../PageHeader";
+import { sampleAvatars } from "../../demoContent";
 import type { Avatar } from "../../types";
 
 type AvatarsPageProps = {
@@ -12,6 +13,9 @@ type AvatarsPageProps = {
 };
 
 export function AvatarsPage({ avatars, pending, error, result, onSubmit }: AvatarsPageProps) {
+  const displayedAvatars = avatars.length ? avatars : sampleAvatars;
+  const showingSamples = avatars.length === 0;
+
   return (
     <>
       <PageHeader
@@ -48,12 +52,17 @@ export function AvatarsPage({ avatars, pending, error, result, onSubmit }: Avata
       </section>
       <section className="content-section">
         <div className="section-heading">
-          <div><span className="eyebrow">Saved</span><h2>Your avatars</h2></div>
-          <span className="subtle-count">{avatars.length} total</span>
+          <div>
+            <span className="eyebrow">{showingSamples ? "Examples" : "Saved"}</span>
+            <h2>{showingSamples ? "Sample portraits" : "Your avatars"}</h2>
+          </div>
+          <span className="subtle-count">
+            {showingSamples ? `${displayedAvatars.length} examples` : `${avatars.length} total`}
+          </span>
         </div>
-        {avatars.length ? (
+        {displayedAvatars.length ? (
           <div className="avatar-grid">
-            {avatars.map((avatar) => <AvatarCard key={avatar.avatarId} avatar={avatar} />)}
+            {displayedAvatars.map((avatar) => <AvatarCard key={avatar.avatarId} avatar={avatar} />)}
           </div>
         ) : (
           <EmptyState

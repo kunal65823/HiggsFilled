@@ -58,7 +58,13 @@ export function useStudio() {
     if (avatarsResult.status === "fulfilled") setAvatars(avatarsResult.value.data);
     else failures.push(`Avatars: ${errorMessage(avatarsResult.reason)}`);
 
-    if (failures.length) setLoadingError(failures.join(" · "));
+    if (failures.length) {
+      const uniqueErrors = [
+        ...new Set(failures.map((failure) => failure.slice(failure.indexOf(": ") + 2))),
+      ];
+      const singleError = uniqueErrors.length === 1 ? uniqueErrors[0] : undefined;
+      setLoadingError(singleError ?? failures.join(" · "));
+    }
     setLoading(false);
   }, []);
 

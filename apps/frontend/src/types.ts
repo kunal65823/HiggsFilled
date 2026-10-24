@@ -6,6 +6,7 @@ export type User = {
 export type Model = {
   id: string;
   name: string;
+  isSample?: boolean;
 };
 
 export type Video = {
@@ -18,6 +19,9 @@ export type Video = {
   height: number;
   startFrame: string | null;
   endFrame: string | null;
+  videoUrl?: string;
+  previewImage?: string;
+  isSample?: boolean;
 };
 
 export type AvatarImage = {

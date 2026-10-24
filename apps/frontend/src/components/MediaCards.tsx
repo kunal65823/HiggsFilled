@@ -13,7 +13,9 @@ export function ModelCard({ model }: { model: Model }) {
         <strong>{model.name}</strong>
         <span>{isVideoModel ? "Video generation" : "Image generation"}</span>
       </div>
-      <span className="model-status">Ready</span>
+      <span className={model.isSample ? "sample-model-status" : "model-status"}>
+        {model.isSample ? "Sample" : "Ready"}
+      </span>
     </article>
   );
 }
@@ -22,7 +24,24 @@ export function VideoCard({ video }: { video: Video }) {
   return (
     <article className="video-card">
       <div className="video-preview">
-        <span className="preview-play">▶</span>
+        {video.videoUrl ? (
+          <video
+            className="video-media"
+            controls
+            playsInline
+            preload="none"
+            poster={video.previewImage}
+            src={video.videoUrl}
+          />
+        ) : (
+          <>
+            {video.previewImage && (
+              <img className="video-poster" src={video.previewImage} alt="" />
+            )}
+            <span className="preview-play" aria-hidden="true">▶</span>
+          </>
+        )}
+        {video.isSample && <span className="sample-pill">Sample</span>}
         <span className={`status-pill status-${video.status}`}>{video.status}</span>
         <span className="video-duration">{video.duration}s</span>
       </div>

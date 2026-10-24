@@ -1,5 +1,6 @@
 import { AvatarCard, EmptyState, ModelCard, VideoCard } from "../MediaCards";
 import { PageHeader } from "../PageHeader";
+import { sampleAvatars, sampleModels, sampleVideos } from "../../demoContent";
 import type { Avatar, Model, User, Video } from "../../types";
 
 type OverviewPageProps = {
@@ -23,6 +24,13 @@ export function OverviewPage({
   onRefresh,
   onNavigate,
 }: OverviewPageProps) {
+  const displayedModels = models.length > 0 ? models : loading ? [] : sampleModels;
+  const displayedVideos = videos.length > 0 ? videos : sampleVideos;
+  const displayedAvatars = avatars.length > 0 ? avatars : loading ? [] : sampleAvatars;
+  const showingSampleVideos = !loading && videos.length === 0;
+  const showingSampleAvatars = !loading && avatars.length === 0;
+  const showingSampleModels = !loading && models.length === 0;
+
   return (
     <>
       <PageHeader
@@ -48,33 +56,36 @@ export function OverviewPage({
         <article className="stat-card">
           <span className="stat-icon blue">▶</span>
           <span className="stat-label">Videos</span>
-          <strong>{videos.length}</strong>
-          <small>in your library</small>
+          <strong>{showingSampleVideos ? sampleVideos.length : videos.length}</strong>
+          <small>{showingSampleVideos ? "sample videos" : "in your library"}</small>
         </article>
         <article className="stat-card">
           <span className="stat-icon violet">◉</span>
           <span className="stat-label">Avatars</span>
-          <strong>{avatars.length}</strong>
-          <small>ready to create with</small>
+          <strong>{showingSampleAvatars ? sampleAvatars.length : avatars.length}</strong>
+          <small>{showingSampleAvatars ? "sample portraits" : "ready to create with"}</small>
         </article>
         <article className="stat-card">
           <span className="stat-icon green">✧</span>
           <span className="stat-label">AI models</span>
-          <strong>{models.length}</strong>
-          <small>available in workspace</small>
+          <strong>{displayedModels.length}</strong>
+          <small>{showingSampleModels ? "sample models" : "available in workspace"}</small>
         </article>
       </div>
 
       <section className="content-section">
         <div className="section-heading">
-          <div><span className="eyebrow">Your creations</span><h2>Recent videos</h2></div>
+          <div>
+            <span className="eyebrow">{showingSampleVideos ? "A little inspiration" : "Your creations"}</span>
+            <h2>{showingSampleVideos ? "Sample videos" : "Recent videos"}</h2>
+          </div>
           <button className="text-button" onClick={onRefresh} type="button">Refresh ↻</button>
         </div>
         {loading ? (
           <div className="loading-state"><span className="spinner" /> Loading your workspace...</div>
-        ) : videos.length ? (
+        ) : displayedVideos.length ? (
           <div className="video-grid">
-            {videos.slice(0, 4).map((video) => <VideoCard key={video.videoId} video={video} />)}
+            {displayedVideos.slice(0, 4).map((video) => <VideoCard key={video.videoId} video={video} />)}
           </div>
         ) : (
           <EmptyState
@@ -91,10 +102,15 @@ export function OverviewPage({
 
       <section className="content-section models-section">
         <div className="section-heading">
-          <div><span className="eyebrow">Powered by AI</span><h2>Available models</h2></div>
+          <div>
+            <span className="eyebrow">{showingSampleModels ? "Model preview" : "Powered by AI"}</span>
+            <h2>{showingSampleModels ? "Sample models" : "Available models"}</h2>
+          </div>
         </div>
-        {models.length ? (
-          <div className="models-grid">{models.map((model) => <ModelCard key={model.id} model={model} />)}</div>
+        {displayedModels.length ? (
+          <div className="models-grid">
+            {displayedModels.map((model) => <ModelCard key={model.id} model={model} />)}
+          </div>
         ) : (
           <EmptyState title="Models unavailable" detail="Make sure the backend is running, then retry the connection." />
         )}
@@ -102,12 +118,15 @@ export function OverviewPage({
 
       <section className="content-section">
         <div className="section-heading">
-          <div><span className="eyebrow">Your library</span><h2>Recent avatars</h2></div>
+          <div>
+            <span className="eyebrow">{showingSampleAvatars ? "Portrait inspiration" : "Your library"}</span>
+            <h2>{showingSampleAvatars ? "Sample images" : "Recent avatars"}</h2>
+          </div>
           <button className="text-button" onClick={() => onNavigate("avatars")} type="button">View all ↗</button>
         </div>
-        {avatars.length ? (
+        {displayedAvatars.length ? (
           <div className="avatar-grid">
-            {avatars.slice(0, 3).map((avatar) => <AvatarCard key={avatar.avatarId} avatar={avatar} />)}
+            {displayedAvatars.slice(0, 3).map((avatar) => <AvatarCard key={avatar.avatarId} avatar={avatar} />)}
           </div>
         ) : (
           <EmptyState
